@@ -19,6 +19,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+st.info("Note: Running on free-tier CPU, so document processing takes ~1 minute. Thanks for your patience!")
 uploaded_file = st.file_uploader('Upload a PDF file', type="pdf")
 
 if uploaded_file is not None:
