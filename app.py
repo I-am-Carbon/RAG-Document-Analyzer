@@ -30,7 +30,8 @@ if uploaded_file is not None:
         tmp_path = tmp.name
     
       with st.spinner("Processing document..."):
-        build_vectorstore(tmp_path) 
+         session_id = build_vectorstore(tmp_path) 
+         st.session_state.session_id = session_id
       
       st.session_state.processed_file = uploaded_file.name
       st.success("Document ready!")
@@ -52,7 +53,7 @@ if uploaded_file is not None:
         with st.chat_message("user"):
            st.write(query)
                 
-        response = answer_question(query)
+        response = answer_question(query, st.session_state.session_id)
         st.session_state.messages.append({"role": "assistant", "content": response})
         with st.chat_message("assistant"):
           st.write(response)

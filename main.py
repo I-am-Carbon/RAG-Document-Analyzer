@@ -1,4 +1,5 @@
 import os
+import uuid
 from langchain_groq import ChatGroq
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -36,35 +37,48 @@ Only say "I don't know" if the answer is genuinely not in the context.
 Context:
 {context}
 """
-ensemble = None
-def build_vectorstore(file_path):
-    
+sessions = {}
+def build_vectorstore(file_path, session_id = None):
 
-    global ensemble
+    if session_id == None:
+       session_id = str(uuid.uuid4())
 
-    existing = vector_store.get()
-    if existing["ids"]:
-        vector_store.delete(ids=existing["ids"])
+    session_vector_store = Chroma(
+        collection_name=f"rag_collection_{session_id}",
+        embedding_function=embeddings,
+        persist_directory=f"./chroma_db_{session_id}",
+    )
 
         
     loader = PyPDFLoader(file_path)
     docs = loader.load()
     chunks = text_splitter.split_documents(docs)
-    vector_store.add_documents(chunks)
+    session_vector_store.add_documents(chunks)
 
     # inside build_vectorstore, after creating chunks:
     bm25_retriever = BM25Retriever.from_documents(chunks)
     bm25_retriever.k = 20
 
-    vector_retriever = vector_store.as_retriever(search_kwargs={"k": 20})
+    vector_retriever = session_vector_store.as_retriever(search_kwargs={"k": 20})
 
-    ensemble =  EnsembleRetriever(
+    session_ensemble =  EnsembleRetriever(
        retrievers=[bm25_retriever, vector_retriever],
        weights=[0.5, 0.5]
     )
 
-def answer_question(query):
+    sessions[session_id] = {
+        "vector_store": session_vector_store,
+        "ensemble": session_ensemble,
+    }
 
+    return session_id
+
+def answer_question(query ,session_id):
+    session = sessions.get(session_id)
+    if session is None:
+        return "No document uploaded for this session. Please upload a document first."
+
+    ensemble = session["ensemble"]
     retrieved_docs = ensemble.invoke(query)
     
     results = co.rerank(
@@ -89,8 +103,9 @@ def answer_question(query):
     return model.invoke(messages).content
 
 if __name__ == "__main__":
+    session_id = build_vectorstore(input("Enter PDF path: "))
     while True:
         query = input("\nAsk a question (or type 'quit'): ")
         if query.lower() == "quit":
             break
-        print(answer_question(query))
+        print(answer_question(query, session_id))

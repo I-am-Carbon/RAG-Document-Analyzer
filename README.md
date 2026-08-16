@@ -11,4 +11,3 @@ pinned: false
 
 # RAG Document Analyzer
 
-Your project description here.
